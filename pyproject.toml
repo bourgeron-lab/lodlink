@@ -28,9 +28,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/amathieu/lodlink"
-Repository = "https://github.com/amathieu/lodlink"
-Documentation = "https://github.com/amathieu/lodlink#readme"
+Homepage = "https://github.com/bourgeron-lab/lodlink"
+Repository = "https://github.com/bourgeron-lab/lodlink"
+Documentation = "https://github.com/bourgeron-lab/lodlink#readme"
 
 [project.scripts]
 lodlink = "lodlink.cli:main"
