@@ -1,0 +1,77 @@
+# Configuration d'Exemple pour LODLink
+# =====================================
+
+# FICHIERS D'ENTRÉE
+# -----------------
+# Par défaut, les fichiers sont recherchés dans le dossier data/
+--ped data/pedfile.pro
+--map data/map
+--freq data/freq
+--geno data/genotyping
+
+# MODÈLE DE MALADIE
+# -----------------
+# Choix: dominant ou recessive
+--model dominant
+
+# Fréquence de l'allèle de la maladie (rare: 0.001, fréquent: 0.01-0.1)
+--disease-freq 0.001
+
+# Pénétrances personnalisées (optionnel): f0 f1 f2
+# f0 = phénocopie (génotype normal mais malade)
+# f1 = hétérozygote (Dd)
+# f2 = homozygote (DD)
+# --penetrance 0.001 0.95 0.95
+
+# ANALYSE
+# -------
+# Thinning des marqueurs en cM (0 = pas de thinning)
+# Valeurs recommandées: 0.5-1.0 cM pour un bon compromis vitesse/précision
+--thin 0.5
+
+# Chromosome spécifique (optionnel, sinon tous les chromosomes)
+# --chr 1
+
+# Fenêtre de lissage multipoint en cM
+--smooth-window 2.0
+
+# Seuil LOD pour les régions significatives
+--lod-threshold 3.0
+
+# VISUALISATIONS
+# --------------
+# Générer le rapport HTML interactif
+--html
+
+# Extension des régions significatives en Mb (de chaque côté du pic)
+--extend-region 3.0
+
+# Désactiver les pedigrees HaploPainter (pas recommandé)
+# --no-haplopainter
+
+# SORTIE
+# ------
+# Dossier de sortie
+--output results
+
+# =====================================
+# EXEMPLES D'UTILISATION
+# =====================================
+
+# Analyse standard genome-wide
+uv run lodlink --html --extend-region 3.0
+
+# Analyse d'un seul chromosome
+uv run lodlink --chr 7 --html
+
+# Modèle récessif
+uv run lodlink --model recessive --html
+
+# Sans thinning (tous les marqueurs, plus lent)
+uv run lodlink --thin 0 --html
+
+# Pénétrances personnalisées
+uv run lodlink --penetrance 0.01 0.5 0.9 --html
+
+# Fichiers personnalisés
+uv run lodlink --ped my_ped.pro --map my_map --freq my_freq --geno my_geno --html

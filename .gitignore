@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+*.pyc
+
+# uv (gestionnaire de packages)
+uv.lock
+.python-version
+
+# Données (fichiers volumineux - ne pas commit)
+data/genotyping
+data/map
+data/freq
+*.zip
+
+# Résultats (peuvent être régénérés - ne pas commit)
+results/
+*.png
+*.html
+*.tsv
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.spyderproject
+.ropeproject
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*~
+
+# Documentation build
+docs/_build/
+site/
+
+# Temporary files
+*.tmp
+*.log
+
+# Garder les fichiers d'exemple
+!examples/
+!examples.zip
+
+# Garder la structure des dossiers
+!data/.gitkeep
+!results/.gitkeep
+
+# Ne pas ignorer les fichiers de configuration importants
+!pyproject.toml
+!requirements.txt
+!README*.md
+!LICENSE
+!MANIFEST.in
