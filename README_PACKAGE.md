@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Pipeline d'analyse de liaison génétique moderne - Alternative à Merlin avec LOD scores paramétriques/NPL et visualisations HaploPainter.
+Pipeline d'analyse de liaison génétique moderne - Alternative à Merlin avec LOD scores paramétriques/NPL et visualisations LODLink.
 
 ## Fonctionnalités
 
@@ -14,7 +14,7 @@ Pipeline d'analyse de liaison génétique moderne - Alternative à Merlin avec L
 - Support de modèles dominant/récessif
 
 📊 **Visualisations**
-- Pedigrees style HaploPainter avec haplotypes colorés
+- Pedigrees style LODLink avec haplotypes colorés
 - Graphiques interactifs Plotly
 - Rapports HTML avec annotations géniques (Ensembl API)
 - Manhattan plots genome-wide

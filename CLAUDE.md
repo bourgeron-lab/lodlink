@@ -23,7 +23,7 @@ lodlink/
 │   ├── data_parser.py       # Parsing des fichiers volumineux
 │   ├── pedigree.py          # Analyse de pedigree (peeling)
 │   ├── lod_engine.py        # LOD scores (Elston-Stewart, NPL)
-│   ├── haplopainter.py      # Visualisations pedigree
+│   ├── pedigree.py      # Visualisations pedigree
 │   └── html_viz.py          # Rapports HTML + Ensembl API
 │
 ├── data/                     # Données d'entrée (gitignored)
@@ -34,7 +34,7 @@ lodlink/
 │
 ├── results/                  # Résultats (gitignored, régénérables)
 │   ├── linkage_results_interactive.html
-│   ├── haplopainter_*.png
+│   ├── pedigree_*.png
 │   └── lod_*.tsv
 │
 ├── pyproject.toml           # Configuration uv/pip ⭐
@@ -169,7 +169,7 @@ Chaque module a une responsabilité claire:
 - **data_parser.py**: Streaming parsing des gros fichiers (genotyping = 900 MB)
 - **pedigree.py**: Analyse de structure, ordre de peeling
 - **lod_engine.py**: Calculs LOD (Elston-Stewart algorithm)
-- **haplopainter.py**: Visualisations matplotlib
+- **pedigree.py**: Visualisations matplotlib
 - **html_viz.py**: Rapports HTML, API Ensembl, Plotly
 - **cli.py**: Interface ligne de commande, orchestration
 
@@ -465,7 +465,7 @@ uv add plotly>=5.0
 - LOD = log10(likelihood ratio)
 - Seuil significatif: 3.0 par défaut
 
-### Visualisations HaploPainter
+### Visualisations LODLink
 
 - Utilise matplotlib (backend Agg)
 - Couleurs: 8 haplotypes fondateurs

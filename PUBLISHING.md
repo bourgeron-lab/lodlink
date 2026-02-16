@@ -51,7 +51,7 @@ Ajouter une section pour la nouvelle version dans `CHANGELOG.md`:
 ### Added
 - Première version publique
 - Support complet de l'analyse de liaison
-- Visualisations HaploPainter
+- Visualisations LODLink
 - Rapport HTML interactif
 ```
 

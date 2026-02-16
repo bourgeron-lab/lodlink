@@ -143,7 +143,7 @@ lodlink/
 │   ├── data_parser.py
 │   ├── pedigree.py
 │   ├── lod_engine.py
-│   ├── haplopainter.py
+│   ├── pedigree.py
 │   └── html_viz.py
 │
 ├── data/                     # Données (gitignored)

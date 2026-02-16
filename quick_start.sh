@@ -66,7 +66,7 @@ if [ $? -eq 0 ]; then
     fi
     echo ""
     echo "📁 Autres fichiers:"
-    echo "   - Pedigrees HaploPainter: results/haplopainter_*.png"
+    echo "   - Pedigrees LODLink: results/pedigree_*.png"
     echo "   - Vue genome-wide: results/genome_wide_lod.png"
     echo "   - Tableau résumé: results/lod_results_summary.tsv"
 else

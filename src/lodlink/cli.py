@@ -23,8 +23,8 @@ from lodlink.data_parser import load_all_data
 from lodlink.pedigree import Pedigree
 from lodlink.config import DiseaseModel
 from lodlink.lod_engine import LinkageAnalysis
-from lodlink.haplopainter import (
-    HaploPainterViz,
+from lodlink.visualizations import (
+    PedigreeViz,
     plot_genome_wide_lod,
     generate_results_table
 )
@@ -77,8 +77,8 @@ Exemples:
                         help='Chromosome spécifique (défaut: tous)')
     parser.add_argument('--smooth-window', type=float, default=2.0,
                         help='Fenêtre de lissage multipoint en cM (défaut: 2.0)')
-    parser.add_argument('--no-haplopainter', action='store_true',
-                        help='Désactiver la visualisation HaploPainter')
+    parser.add_argument('--no-viz', action='store_true',
+                        help='Désactiver les visualisations de pedigree')
     parser.add_argument('--extend-region', type=float, default=2.0,
                         help='Étendre les régions significatives de N Mb de chaque côté (défaut: 2.0)')
     parser.add_argument('--html', action='store_true',
@@ -257,11 +257,11 @@ Exemples:
     print("\n  Génération des plots LOD...")
     plot_genome_wide_lod(results_by_chr, output_dir, threshold=args.lod_threshold)
 
-    # HaploPainter
-    if not args.no_haplopainter and all_significant_regions:
-        print("\n  Génération des pedigrees HaploPainter...")
-        haplopainter = HaploPainterViz(pedigree, output_dir)
-        haplopainter.draw_all_significant_regions(
+    # Visualisations de pedigree
+    if not args.no_viz and all_significant_regions:
+        print("\n  Génération des pedigrees avec haplotypes...")
+        pedigree_viz = PedigreeViz(pedigree, output_dir)
+        pedigree_viz.draw_all_significant_regions(
             all_significant_regions, data['genotypes'], data['freq']
         )
 

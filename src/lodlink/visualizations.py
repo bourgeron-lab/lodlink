@@ -1,5 +1,5 @@
 """
-Visualisation de type HaploPainter.
+Visualisations pour LODLink.
 
 Génère:
 1. Plots genome-wide des LOD scores (paramétrique + NPL)
@@ -204,9 +204,9 @@ def plot_genome_wide_lod(results_by_chr, output_dir, threshold=3.0):
     print(f"  → Plots par chromosome sauvegardés dans {output_dir}/")
 
 
-class HaploPainterViz:
+class PedigreeViz:
     """
-    Visualisation style HaploPainter des pedigrees avec haplotypes
+    Visualisation style LODLink des pedigrees avec haplotypes
     pour les régions de liaison significatives.
 
     Style canonique : barres d'haplotypes EN DESSOUS des symboles,
@@ -387,11 +387,11 @@ class HaploPainterViz:
                                        chrom, filename=None):
         """
         Dessine le pedigree avec les haplotypes inférés pour une région donnée.
-        Style canonique HaploPainter : barres sous les symboles, labels de
+        Style canonique LODLink : barres sous les symboles, labels de
         génération, noms de marqueurs en marge gauche.
         """
         if filename is None:
-            filename = (f"haplopainter_chr{chrom}_"
+            filename = (f"pedigree_chr{chrom}_"
                         f"{region_info['start_bp']:.0f}_{region_info['end_bp']:.0f}.png")
 
         # Stocker les infos de marqueurs pour le dessin
@@ -468,7 +468,7 @@ class HaploPainterViz:
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
         plt.close()
-        print(f"  → HaploPainter: {filepath}")
+        print(f"  → LODLink: {filepath}")
 
     # ------------------------------------------------------------------
     # Méthodes d'annotation
@@ -1088,7 +1088,7 @@ class HaploPainterViz:
 
     def draw_all_significant_regions(self, regions_by_chr, genotypes, freq_dict):
         """
-        Dessine les pedigrees HaploPainter pour toutes les régions significatives.
+        Dessine les pedigrees LODLink pour toutes les régions significatives.
 
         Parameters
         ----------
@@ -1099,10 +1099,10 @@ class HaploPainterViz:
             print("  Aucune région significative trouvée.")
             return
 
-        print(f"\n  Génération de {total} pedigree(s) HaploPainter...")
+        print(f"\n  Génération de {total} pedigree(s) LODLink...")
         for chrom, regions in regions_by_chr.items():
             for i, region in enumerate(regions):
-                filename = (f"haplopainter_chr{chrom}_"
+                filename = (f"pedigree_chr{chrom}_"
                             f"{region['start_bp'] / 1e6:.1f}Mb_"
                             f"{region['end_bp'] / 1e6:.1f}Mb.png")
                 self.draw_pedigree_with_haplotypes(

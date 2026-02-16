@@ -46,8 +46,8 @@
 # Extension des régions significatives en Mb (de chaque côté du pic)
 --extend-region 3.0
 
-# Désactiver les pedigrees HaploPainter (pas recommandé)
-# --no-haplopainter
+# Désactiver les pedigrees LODLink (pas recommandé)
+# --no-pedigree
 
 # SORTIE
 # ------

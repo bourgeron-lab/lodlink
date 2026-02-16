@@ -21,6 +21,7 @@ uv.lock
 data/genotyping
 data/map
 data/freq
+data/*
 *.zip
 
 # Résultats (peuvent être régénérés - ne pas commit)
@@ -72,3 +73,4 @@ site/
 !README*.md
 !LICENSE
 !MANIFEST.in
+data/pedfile.pro

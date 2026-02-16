@@ -48,7 +48,7 @@ python3 run_analysis.py \
 - `results/linkage_results_interactive.html` - Rapport HTML interactif
 
 ### Modifiés
-- Les pedigrees HaploPainter incluent maintenant les régions étendues
+- Les pedigrees LODLink incluent maintenant les régions étendues
 
 ### Existants (inchangés)
 - `results/genome_wide_lod.png`

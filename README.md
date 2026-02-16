@@ -1,6 +1,6 @@
 # LODLink — Pipeline d'Analyse de Liaison Génétique
 
-Alternative moderne à Merlin pour le calcul de LOD scores paramétriques et non-paramétriques, avec visualisation de type HaploPainter pour les régions significatives.
+Alternative moderne à Merlin pour le calcul de LOD scores paramétriques et non-paramétriques, avec visualisation de type LODLink pour les régions significatives.
 
 ## 🚀 Installation
 
@@ -32,7 +32,7 @@ pip install -e .
 │
 ├── results/                   # Résultats d'analyse
 │   ├── linkage_results_interactive.html  # Rapport HTML interactif ⭐
-│   ├── haplopainter_*.png    # Pedigrees HaploPainter
+│   ├── pedigree_*.png    # Pedigrees LODLink
 │   ├── genome_wide_lod.png   # Vue genome-wide
 │   └── lod_*.tsv             # Tableaux de résultats
 │
@@ -43,7 +43,7 @@ pip install -e .
 │   ├── data_parser.py        # Chargement des données
 │   ├── pedigree.py           # Analyse du pedigree
 │   ├── lod_engine.py         # Calcul des LOD scores
-│   ├── haplopainter.py       # Visualisations pedigree
+│   ├── pedigree.py       # Visualisations pedigree
 │   └── html_viz.py           # Génération HTML interactive
 │
 ├── pyproject.toml             # Configuration du package (uv/pip)
@@ -106,11 +106,11 @@ Le fichier `results/linkage_results_interactive.html` contient :
   - Tableau détaillé des gènes protéiques (symbole, position, taille, brin, lien Ensembl)
   - Liste des autres éléments génétiques
 - **Régions partagées** : Analyse des haplotypes partagés par les individus affectés
-- **Pedigrees HaploPainter** : Visualisation des haplotypes intégrée
+- **Pedigrees LODLink** : Visualisation des haplotypes intégrée
 
 ### Autres Fichiers
 
-- **`haplopainter_*.png`** : Pedigrees avec haplotypes colorés pour chaque région
+- **`pedigree_*.png`** : Pedigrees avec haplotypes colorés pour chaque région
 - **`genome_wide_lod.png`** : Manhattan plot genome-wide
 - **`lod_results_summary.tsv`** : Tableau résumé des régions significatives
 - **`lod_scores_all.tsv`** : Scores LOD bruts pour tous les marqueurs
@@ -186,7 +186,7 @@ python3 run_analysis.py --disease-freq 0.01 --penetrance 0.01 0.5 0.9
 - **Régions Significatives** : Détection automatique (seuil LOD ≥ 3.0)
 - **Région Partagée Minimale** : Intersection des haplotypes des individus affectés
 
-## 🎨 Visualisation HaploPainter
+## 🎨 Visualisation LODLink
 
 - Pedigree avec 3 générations
 - Haplotypes colorés (rouge/bleu pour allèles paternels/maternels)
@@ -219,7 +219,7 @@ python3 run_analysis.py --disease-freq 0.01 --penetrance 0.01 0.5 0.9
 
 - Abecasis et al. (2002) - Merlin: Rapid analysis of dense genetic maps
 - Kong & Cox (1997) - Allele-sharing models: LOD scores and accurate linkage tests
-- HaploPainter (Thiele & Nürnberg, 2005) - Visualization of haplotype data
+- LODLink (Thiele & Nürnberg, 2005) - Visualization of haplotype data
 
 ## 📧 Support
 
