@@ -1,7 +1,7 @@
 [project]
 name = "lodlink"
 version = "1.0.0"
-description = "Pipeline d'analyse de liaison génétique - Alternative moderne à Merlin avec LOD scores paramétriques/NPL et visualisations HaploPainter"
+description = "Modern genetic linkage analysis pipeline - Alternative to Merlin with parametric/NPL LOD scores and interactive pedigree visualizations"
 readme = "README.md"
 authors = [
     { name = "Alexandre MATHIEU", email = "amathieu@pasteur.fr" }

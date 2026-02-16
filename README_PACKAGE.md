@@ -3,63 +3,63 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Pipeline d'analyse de liaison génétique moderne - Alternative à Merlin avec LOD scores paramétriques/NPL et visualisations LODLink.
+Modern genetic linkage analysis pipeline - Alternative to Merlin with parametric/NPL LOD scores and interactive pedigree visualizations.
 
-## Fonctionnalités
+## Features
 
-🧬 **Analyse de Liaison Complète**
-- LOD scores paramétriques (algorithme Elston-Stewart)
-- Scores NPL non-paramétriques (Kong & Cox)
-- Lissage multipoint gaussien
-- Support de modèles dominant/récessif
+🧬 **Complete Linkage Analysis**
+- Parametric LOD scores (Elston-Stewart algorithm)
+- Non-parametric NPL scores (Kong & Cox)
+- Gaussian multipoint smoothing
+- Support for dominant/recessive models
 
-📊 **Visualisations**
-- Pedigrees style LODLink avec haplotypes colorés
-- Graphiques interactifs Plotly
-- Rapports HTML avec annotations géniques (Ensembl API)
-- Manhattan plots genome-wide
+📊 **Visualizations**
+- Interactive pedigrees with colored haplotypes
+- Interactive Plotly charts
+- HTML reports with gene annotations (Ensembl API)
+- Genome-wide Manhattan plots
 
 ⚡ **Performance**
-- Thinning intelligent des marqueurs
-- Parsing efficace des gros fichiers de génotypage
-- Support multi-chromosomes
+- Intelligent marker thinning
+- Efficient parsing of large genotyping files
+- Multi-chromosome support
 
-## Installation Rapide
+## Quick Installation
 
-### Avec uv (recommandé)
+### With uv (recommended)
 
 ```bash
 uv pip install lodlink
 ```
 
-### Avec pip
+### With pip
 
 ```bash
 pip install lodlink
 ```
 
-## Utilisation
+## Usage
 
 ```bash
-# Analyse genome-wide standard
+# Standard genome-wide analysis
 lodlink --html --extend-region 3.0
 
-# Modèle récessif, chromosome 6
+# Recessive model, chromosome 6
 lodlink --model recessive --chr 6 --html
 
-# Aide complète
+# Complete help
 lodlink --help
 ```
 
-## Format des Données
+## Data Format
 
-**Pedigree** (format Merlin):
+**Pedigree** (Merlin format):
 ```
 FamilyID  IndivID  FatherID  MotherID  Sex  Affection
 1         1        0         0         1    2
 ```
 
-**Carte génétique**:
+**Genetic map**:
 ```
 CHR  MARKER    cM     bp
 1    rs12345   0.0    12345
@@ -67,22 +67,22 @@ CHR  MARKER    cM     bp
 
 ## Documentation
 
-Documentation complète: [GitHub Repository](https://github.com/amathieu/lodlink)
+Full documentation: [GitHub Repository](https://github.com/bourgeron-lab/lodlink)
 
 ## Citation
 
-Si vous utilisez LODLink dans vos recherches, veuillez citer:
+If you use LODLink in your research, please cite:
 
 ```
 MATHIEU A. (2025). LODLink: Modern genetic linkage analysis pipeline.
-https://github.com/amathieu/lodlink
+https://github.com/bourgeron-lab/lodlink
 ```
 
-## Licence
+## License
 
-MIT License - voir LICENSE pour plus de détails.
+MIT License - see LICENSE for details.
 
 ## Support
 
-- Issues: https://github.com/amathieu/lodlink/issues
+- Issues: https://github.com/bourgeron-lab/lodlink/issues
 - Email: amathieu@pasteur.fr

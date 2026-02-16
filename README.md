@@ -1,134 +1,134 @@
-# LODLink — Pipeline d'Analyse de Liaison Génétique
+# LODLink — Genetic Linkage Analysis Pipeline
 
-Alternative moderne à Merlin pour le calcul de LOD scores paramétriques et non-paramétriques, avec visualisation de type LODLink pour les régions significatives.
+Modern alternative to Merlin for parametric and non-parametric LOD score calculation, with interactive pedigree visualizations for significant regions.
 
 ## 🚀 Installation
 
-### Avec uv (recommandé)
+### With uv (recommended)
 
 ```bash
-# Installer uv si nécessaire
+# Install uv if needed
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Synchroniser les dépendances
+# Sync dependencies
 uv sync
 ```
 
-### Avec pip
+### With pip
 
 ```bash
 pip install -e .
 ```
 
-## 📁 Structure du Projet
+## 📁 Project Structure
 
 ```
 .
-├── data/                      # Données d'entrée
-│   ├── pedfile.pro           # Fichier pedigree (format Merlin)
-│   ├── map                   # Carte génétique
-│   ├── freq                  # Fréquences alléliques
-│   └── genotyping            # Données de génotypage
+├── data/                      # Input data
+│   ├── pedfile.pro           # Pedigree file (Merlin format)
+│   ├── map                   # Genetic map
+│   ├── freq                  # Allele frequencies
+│   └── genotyping            # Genotyping data
 │
-├── results/                   # Résultats d'analyse
-│   ├── linkage_results_interactive.html  # Rapport HTML interactif ⭐
-│   ├── pedigree_*.png    # Pedigrees LODLink
-│   ├── genome_wide_lod.png   # Vue genome-wide
-│   └── lod_*.tsv             # Tableaux de résultats
+├── results/                   # Analysis results
+│   ├── linkage_results_interactive.html  # Interactive HTML report ⭐
+│   ├── pedigree_*.png        # LODLink pedigrees
+│   ├── genome_wide_lod.png   # Genome-wide view
+│   └── lod_*.tsv             # Results tables
 │
-├── src/lodlink/               # Package Python
-│   ├── __init__.py           # Exports publics
-│   ├── cli.py                # Interface ligne de commande
-│   ├── config.py             # Configuration des modèles
-│   ├── data_parser.py        # Chargement des données
-│   ├── pedigree.py           # Analyse du pedigree
-│   ├── lod_engine.py         # Calcul des LOD scores
-│   ├── pedigree.py       # Visualisations pedigree
-│   └── html_viz.py           # Génération HTML interactive
+├── src/lodlink/               # Python package
+│   ├── __init__.py           # Public exports
+│   ├── cli.py                # Command-line interface
+│   ├── config.py             # Disease model configuration
+│   ├── data_parser.py        # Data loading
+│   ├── pedigree.py           # Pedigree analysis
+│   ├── lod_engine.py         # LOD score computation
+│   ├── visualizations.py     # Pedigree visualizations
+│   └── html_viz.py           # Interactive HTML generation
 │
-├── pyproject.toml             # Configuration du package (uv/pip)
-├── uv.lock                    # Lock file des dépendances
-├── quick_start.sh             # Script de démarrage rapide
-└── README.md                  # Cette documentation
+├── pyproject.toml             # Package configuration (uv/pip)
+├── uv.lock                    # Dependency lock file
+├── quick_start.sh             # Quick start script
+└── README.md                  # This documentation
 ```
 
-## 🔬 Utilisation Rapide
+## 🔬 Quick Usage
 
-### Analyse Genome-Wide Standard
+### Standard Genome-Wide Analysis
 
 ```bash
-# Utilise les fichiers dans data/ par défaut
+# Uses files in data/ by default
 uv run lodlink --html --extend-region 3.0
 
-# Ou si vous avez installé avec pip
+# Or if installed with pip
 lodlink --html --extend-region 3.0
 ```
 
-### Exemples Avancés
+### Advanced Examples
 
 ```bash
-# Modèle récessif, chromosome 6 uniquement
+# Recessive model, chromosome 6 only
 uv run lodlink --model recessive --chr 6 --html
 
-# Sans thinning (tous les marqueurs)
+# Without thinning (all markers)
 uv run lodlink --thin 0 --html
 
-# Fichiers personnalisés
+# Custom files
 uv run lodlink --ped my_ped.pro --map my_map --freq my_freq --geno my_geno --html
 ```
 
-## 📊 Options Principales
+## 📊 Main Options
 
-| Option | Description | Défaut |
-|--------|-------------|--------|
-| `--ped` | Fichier pedigree | `data/pedfile.pro` |
-| `--map` | Carte génétique | `data/map` |
-| `--freq` | Fréquences alléliques | `data/freq` |
-| `--geno` | Fichier de génotypage | `data/genotyping` |
-| `--model` | Modèle de maladie (dominant/recessive) | `dominant` |
-| `--thin` | Thinning en cM (0 = pas de thinning) | `0.5` |
-| `--extend-region` | Extension des régions en Mb | `2.0` |
-| `--html` | Générer le rapport HTML interactif | `False` |
-| `--chr` | Chromosome spécifique | tous |
-| `--lod-threshold` | Seuil LOD pour régions significatives | `3.0` |
-| `--output` | Dossier de sortie | `results` |
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--ped` | Pedigree file | `data/pedfile.pro` |
+| `--map` | Genetic map | `data/map` |
+| `--freq` | Allele frequencies | `data/freq` |
+| `--geno` | Genotyping file | `data/genotyping` |
+| `--model` | Disease model (dominant/recessive) | `dominant` |
+| `--thin` | Thinning in cM (0 = no thinning) | `0.5` |
+| `--extend-region` | Region extension in Mb | `2.0` |
+| `--html` | Generate interactive HTML report | `False` |
+| `--chr` | Specific chromosome | all |
+| `--lod-threshold` | LOD threshold for significant regions | `3.0` |
+| `--output` | Output directory | `results` |
 
-## 🎯 Résultats
+## 🎯 Results
 
-### Rapport HTML Interactif
+### Interactive HTML Report
 
-Le fichier `results/linkage_results_interactive.html` contient :
+The file `results/linkage_results_interactive.html` contains:
 
-- **Vue d'ensemble** : Statistiques globales et paramètres d'analyse
-- **Graphiques Plotly interactifs** : LOD scores paramétriques et NPL pour chaque région
-- **Positions exactes** : Format européen avec virgules (ex: 119,157,485 bp)
-- **Annotations géniques** : Gènes dans chaque région significative (via Ensembl API)
-  - Tableau détaillé des gènes protéiques (symbole, position, taille, brin, lien Ensembl)
-  - Liste des autres éléments génétiques
-- **Régions partagées** : Analyse des haplotypes partagés par les individus affectés
-- **Pedigrees LODLink** : Visualisation des haplotypes intégrée
+- **Overview**: Global statistics and analysis parameters
+- **Interactive Plotly charts**: Parametric and NPL LOD scores for each region
+- **Exact positions**: European format with commas (e.g., 119,157,485 bp)
+- **Gene annotations**: Genes in each significant region (via Ensembl API)
+  - Detailed table of protein-coding genes (symbol, position, size, strand, Ensembl link)
+  - List of other genetic elements
+- **Shared regions**: Analysis of haplotypes shared by affected individuals
+- **LODLink pedigrees**: Integrated haplotype visualization
 
-### Autres Fichiers
+### Other Files
 
-- **`pedigree_*.png`** : Pedigrees avec haplotypes colorés pour chaque région
-- **`genome_wide_lod.png`** : Manhattan plot genome-wide
-- **`lod_results_summary.tsv`** : Tableau résumé des régions significatives
-- **`lod_scores_all.tsv`** : Scores LOD bruts pour tous les marqueurs
+- **`pedigree_*.png`**: Pedigrees with colored haplotypes for each region
+- **`genome_wide_lod.png`**: Genome-wide Manhattan plot
+- **`lod_results_summary.tsv`**: Summary table of significant regions
+- **`lod_scores_all.tsv`**: Raw LOD scores for all markers
 
-## 🧬 Annotations Géniques
+## 🧬 Gene Annotations
 
-Les gènes sont automatiquement récupérés via l'API Ensembl REST (GRCh38/hg38) pour chaque région significative :
+Genes are automatically retrieved via Ensembl REST API (GRCh38/hg38) for each significant region:
 
-- ✅ Limite de 4 Mb par région (contrainte API)
-- ✅ Filtrage des gènes protéiques
-- ✅ Liens directs vers Ensembl
-- ✅ Informations détaillées (position, taille, brin)
+- ✅ 4 Mb limit per region (API constraint)
+- ✅ Protein-coding gene filtering
+- ✅ Direct links to Ensembl
+- ✅ Detailed information (position, size, strand)
 
-## 📝 Format des Données d'Entrée
+## 📝 Input Data Format
 
 ### Pedigree (`pedfile.pro`)
 
-Format Merlin standard :
+Standard Merlin format:
 ```
 FamilyID  IndivID  FatherID  MotherID  Sex  Affection
 1         1        0         0         1    2
@@ -136,7 +136,7 @@ FamilyID  IndivID  FatherID  MotherID  Sex  Affection
 1         3        1         2         1    2
 ```
 
-### Carte Génétique (`map`)
+### Genetic Map (`map`)
 
 ```
 CHR  MARKER         cM        bp
@@ -144,7 +144,7 @@ CHR  MARKER         cM        bp
 1    rs67890        0.5       67890
 ```
 
-### Fréquences Alléliques (`freq`)
+### Allele Frequencies (`freq`)
 
 ```
 MARKER     ALLELE1  FREQ1
@@ -152,7 +152,7 @@ rs12345    A        0.45
 rs12345    G        0.55
 ```
 
-### Génotypage (`genotyping`)
+### Genotyping (`genotyping`)
 
 ```
 FAMILY  INDIVIDUAL  MARKER     ALLELE1  ALLELE2
@@ -160,71 +160,70 @@ FAMILY  INDIVIDUAL  MARKER     ALLELE1  ALLELE2
 1       2           rs12345    G        G
 ```
 
-## 🔧 Modèles de Maladie
+## 🔧 Disease Models
 
-### Dominant (défaut)
-- Fréquence allèle maladie : 0.001
-- Pénétrances : f0=0.001, f1=0.95, f2=0.95
+### Dominant (default)
+- Disease allele frequency: 0.001
+- Penetrances: f0=0.001, f1=0.95, f2=0.95
 
-### Récessif
+### Recessive
 ```bash
-python3 run_analysis.py --model recessive
+uv run lodlink --model recessive
 ```
-- Fréquence allèle maladie : 0.001
-- Pénétrances : f0=0.001, f1=0.05, f2=0.95
+- Disease allele frequency: 0.001
+- Penetrances: f0=0.001, f1=0.05, f2=0.95
 
-### Personnalisé
+### Custom
 ```bash
-python3 run_analysis.py --disease-freq 0.01 --penetrance 0.01 0.5 0.9
+uv run lodlink --disease-freq 0.01 --penetrance 0.01 0.5 0.9
 ```
 
-## 📈 Algorithmes
+## 📈 Algorithms
 
-- **LOD Paramétrique** : Calcul exact via algorithme de Elston-Stewart (peeling)
-- **LOD Non-Paramétrique (NPL)** : Score NPL basé sur le partage d'allèles (Kong & Cox)
-- **Multipoint** : Lissage par moyenne mobile pondérée (fenêtre 2 cM)
-- **Régions Significatives** : Détection automatique (seuil LOD ≥ 3.0)
-- **Région Partagée Minimale** : Intersection des haplotypes des individus affectés
+- **Parametric LOD**: Exact calculation via Elston-Stewart algorithm (peeling)
+- **Non-Parametric LOD (NPL)**: NPL score based on allele sharing (Kong & Cox)
+- **Multipoint**: Gaussian weighted smoothing (2 cM window)
+- **Significant Regions**: Automatic detection (LOD threshold ≥ 3.0)
+- **Minimal Shared Region**: Intersection of haplotypes from affected individuals
 
-## 🎨 Visualisation LODLink
+## 🎨 LODLink Visualization
 
-- Pedigree avec 3 générations
-- Haplotypes colorés (rouge/bleu pour allèles paternels/maternels)
-- Barres horizontales montrant le partage d'haplotypes
-- Légende des marqueurs avec positions exactes
-- Labels de génération et statistiques
+- Pedigree with 3 generations
+- Colored haplotypes (red/blue for paternal/maternal alleles)
+- Horizontal bars showing haplotype sharing
+- Marker legend with exact positions
+- Generation labels and statistics
 
-## 💡 Astuces
+## 💡 Tips
 
-1. **Performance** : Utilisez `--thin 0.5` pour un bon compromis vitesse/précision
-2. **Fichier HTML** : Ouvrez-le dans un navigateur moderne (Chrome, Firefox, Safari)
-3. **Zoom sur région** : Utilisez `--chr X` pour analyser un chromosome spécifique
-4. **Extension** : Ajustez `--extend-region` pour capturer plus de contexte génomique
+1. **Performance**: Use `--thin 0.5` for good speed/accuracy balance
+2. **HTML file**: Open in modern browser (Chrome, Firefox, Safari)
+3. **Region focus**: Use `--chr X` to analyze specific chromosome
+4. **Extension**: Adjust `--extend-region` to capture more genomic context
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
-### "HTTP Error 400" lors de la récupération des gènes
-- Les régions > 4 Mb sont automatiquement limitées au centre de la région
-- Vérifiez votre connexion Internet
+### "HTTP Error 400" when fetching genes
+- Regions > 4 Mb are automatically limited to center of region
+- Check your Internet connection
 
-### Analyse lente
-- Utilisez `--thin 1.0` ou plus pour réduire le nombre de marqueurs
-- Analysez un chromosome à la fois avec `--chr`
+### Slow analysis
+- Use `--thin 1.0` or higher to reduce marker count
+- Analyze one chromosome at a time with `--chr`
 
-### Mémoire insuffisante
-- Augmentez le thinning (`--thin 2.0`)
-- Réduisez le nombre de marqueurs dans vos fichiers d'entrée
+### Insufficient memory
+- Increase thinning (`--thin 2.0`)
+- Reduce number of markers in input files
 
-## 📚 Références
+## 📚 References
 
 - Abecasis et al. (2002) - Merlin: Rapid analysis of dense genetic maps
 - Kong & Cox (1997) - Allele-sharing models: LOD scores and accurate linkage tests
-- LODLink (Thiele & Nürnberg, 2005) - Visualization of haplotype data
 
 ## 📧 Support
 
-Pour toute question ou problème, consultez la documentation ou créez une issue.
+For questions or issues, consult the documentation or create an issue on GitHub.
 
 ---
 
-🧬 **LODLink** — Analyse de liaison génétique moderne et rapide
+🧬 **LODLink** — Modern and fast genetic linkage analysis
