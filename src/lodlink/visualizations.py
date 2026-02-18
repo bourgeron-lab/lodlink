@@ -383,29 +383,133 @@ class PedigreeViz:
                 for x, ind_id in items:
                     positions[ind_id] = (x - mid, y_val)
 
+    # ------------------------------------------------------------------
+    # Sous-sélection adaptative des marqueurs
+    # ------------------------------------------------------------------
+    MAX_VIZ_MARKERS = 30
+    SIG_BUDGET = 20    # marqueurs max dans la zone LOD ≥ seuil
+    FLANK_BUDGET = 5   # marqueurs flanquants de chaque côté
+
+    @staticmethod
+    def _subsample(start, end, n_want):
+        """Sous-échantillonne les indices [start, end] pour en garder ~n_want,
+        en incluant toujours start et end."""
+        n_available = end - start + 1
+        if n_available <= n_want:
+            return list(range(start, end + 1))
+        step = max(1, (n_available - 1) // (n_want - 1))
+        indices = list(range(start, end + 1, step))
+        if indices[-1] != end:
+            indices.append(end)
+        return indices
+
+    def _adaptive_marker_selection(self, region_info):
+        """
+        Sous-sélectionne les marqueurs pour la visualisation :
+        - Si ≤ MAX_VIZ_MARKERS : tout garder
+        - Sinon : sous-échantillonner la zone LOD ≥ seuil à ~SIG_BUDGET,
+          et les flancs à ~FLANK_BUDGET de chaque côté.
+
+        Le marqueur pic LOD est toujours inclus.
+        Retourne un nouveau region_info avec les arrays filtrés.
+        """
+        marker_names = region_info.get('marker_names', [])
+        lod_scores = region_info.get('lod_scores', None)
+        n_total = len(marker_names)
+
+        if n_total <= self.MAX_VIZ_MARKERS or lod_scores is None:
+            return region_info
+
+        threshold = region_info.get('lod_threshold', 3.0)
+
+        # Indices des marqueurs au-dessus du seuil
+        sig_indices = [i for i in range(n_total) if lod_scores[i] >= threshold]
+
+        if not sig_indices:
+            # Pas de zone significative → sous-échantillonnage uniforme
+            selected = self._subsample(0, n_total - 1, self.MAX_VIZ_MARKERS)
+        else:
+            sig_start = min(sig_indices)
+            sig_end = max(sig_indices)
+            peak_idx = int(np.argmax(lod_scores))
+
+            # Zone significative : sous-échantillonner à SIG_BUDGET
+            sig_selected = self._subsample(sig_start, sig_end, self.SIG_BUDGET)
+            # Toujours inclure le pic
+            if peak_idx not in sig_selected:
+                sig_selected.append(peak_idx)
+
+            # Flanc gauche
+            if sig_start > 0:
+                left_selected = self._subsample(0, sig_start - 1, self.FLANK_BUDGET)
+            else:
+                left_selected = []
+
+            # Flanc droit
+            if sig_end < n_total - 1:
+                right_selected = self._subsample(sig_end + 1, n_total - 1, self.FLANK_BUDGET)
+            else:
+                right_selected = []
+
+            selected = sorted(set(left_selected + sig_selected + right_selected))
+
+        # Construire le nouveau region_info filtré
+        new_info = dict(region_info)
+        new_info['marker_names'] = np.array(marker_names)[selected] if hasattr(marker_names, '__getitem__') else [marker_names[i] for i in selected]
+        new_info['lod_scores'] = np.array(lod_scores)[selected]
+        if 'cm_positions' in region_info:
+            cm = region_info['cm_positions']
+            new_info['cm_positions'] = np.array(cm)[selected]
+        if 'marker_indices' in region_info:
+            mi = region_info['marker_indices']
+            new_info['marker_indices'] = [mi[i] for i in selected]
+
+        n_sel = len(selected)
+        n_sig_kept = sum(1 for i in selected if lod_scores[i] >= threshold)
+        print(f"    Marqueurs: {n_total} → {n_sel} "
+              f"({n_sig_kept} dans zone LOD ≥ {threshold:.1f})")
+
+        return new_info
+
     def draw_pedigree_with_haplotypes(self, region_info, genotypes, freq_dict,
-                                       chrom, filename=None):
+                                       chrom, filename=None,
+                                       skip_adaptive=False):
         """
         Dessine le pedigree avec les haplotypes inférés pour une région donnée.
         Style canonique LODLink : barres sous les symboles, labels de
         génération, noms de marqueurs en marge gauche.
+
+        Parameters
+        ----------
+        skip_adaptive : bool
+            Si True, affiche TOUS les marqueurs sans sous-échantillonnage.
         """
         if filename is None:
             filename = (f"pedigree_chr{chrom}_"
                         f"{region_info['start_bp']:.0f}_{region_info['end_bp']:.0f}.png")
 
+        # Sous-sélection adaptative des marqueurs selon le LOD score
+        if not skip_adaptive:
+            region_info = self._adaptive_marker_selection(region_info)
+
         # Stocker les infos de marqueurs pour le dessin
         marker_names = region_info.get('marker_names', [])
         self.n_markers = len(marker_names)
         self.marker_names = list(marker_names)
+        self._full_mode = skip_adaptive and self.n_markers > self.MAX_VIZ_MARKERS
 
         # Hauteur effective par rangée (compressée si trop, étendue si peu)
         if self.n_markers > 0:
-            rh = self.HAP_ROW_HEIGHT
-            # Ne pas dépasser la hauteur max
-            rh = min(rh, self.HAP_MAX_HEIGHT / self.n_markers)
-            # Ne pas descendre sous la hauteur min
-            rh = max(rh, self.HAP_MIN_HEIGHT / max(self.n_markers, 1))
+            if self._full_mode:
+                # Mode full : chaque rangée ~1px à 150 dpi → 1/150 inch
+                # On utilise 0.02 unit/marqueur, soit ~3px par rangée
+                rh = max(0.02, 8.0 / self.n_markers)
+            else:
+                rh = self.HAP_ROW_HEIGHT
+                # Ne pas dépasser la hauteur max
+                rh = min(rh, self.HAP_MAX_HEIGHT / self.n_markers)
+                # Ne pas descendre sous la hauteur min
+                rh = max(rh, self.HAP_MIN_HEIGHT / max(self.n_markers, 1))
             self._eff_row_height = rh
         else:
             self._eff_row_height = self.HAP_ROW_HEIGHT
@@ -430,15 +534,20 @@ class PedigreeViz:
         fig_height = max(10, n_gens * (bar_height + 3.0) + 2)
         fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_height))
 
+        # LOD scores par marqueur (pour zone significative)
+        lod_scores = region_info.get('lod_scores', None)
+        lod_threshold = region_info.get('lod_threshold', 3.0)
+
         # Dessiner dans l'ordre : séparateurs → connexions → individus → annotations
         self._draw_family_separators(ax)
         self._draw_family_connections(ax)
 
         for ind_id in self.ped.ind_ids:
-            self._draw_individual(ax, ind_id, haplotypes.get(ind_id))
+            self._draw_individual(ax, ind_id, haplotypes.get(ind_id),
+                                  lod_scores=lod_scores, lod_threshold=lod_threshold)
 
         self._draw_generation_labels(ax)
-        self._draw_marker_legend(ax)
+        self._draw_marker_legend(ax, lod_scores=lod_scores, lod_threshold=lod_threshold)
 
         # Titre compact
         peak_lod = region_info['peak_lod']
@@ -466,9 +575,439 @@ class PedigreeViz:
 
         plt.tight_layout()
         filepath = os.path.join(self.output_dir, filename)
-        plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+        save_dpi = 200 if getattr(self, '_full_mode', False) else 150
+        plt.savefig(filepath, dpi=save_dpi, bbox_inches='tight', facecolor='white')
         plt.close()
         print(f"  → LODLink: {filepath}")
+
+    # ------------------------------------------------------------------
+    # Export JSON pour viewer Canvas HTML
+    # ------------------------------------------------------------------
+
+    def export_haplotype_json(self, region_info, genotypes, freq_dict, chrom):
+        """
+        Exporte toutes les données nécessaires pour dessiner le pedigree
+        avec haplotypes dans un Canvas HTML5.
+
+        Retourne un dict sérialisable en JSON contenant :
+        - individuals : liste de {id, x, y, sex, status}
+        - connections : liste de lignes à tracer
+        - haplotypes : {ind_id: {pat: [labels], mat: [labels]}}
+        - marker_names : liste
+        - lod_scores : liste (ou null)
+        - colors : palette de couleurs
+        - metadata : infos sur la région
+        """
+        # Sous-sélection adaptative des marqueurs => NON, on veut TOUT
+        marker_names = region_info.get('marker_names', [])
+        n_markers = len(marker_names)
+
+        # Stocker pour l'inférence d'haplotypes
+        self.n_markers = n_markers
+        self.marker_names = list(marker_names)
+        self._full_mode = True
+
+        # Row height pour le layout
+        rh = max(0.02, 8.0 / n_markers) if n_markers > 0 else self.HAP_ROW_HEIGHT
+        self._eff_row_height = rh
+
+        # Layout
+        bar_height = n_markers * rh
+        needed_v = bar_height + self.SYMBOL_SIZE + self.HAP_SYMBOL_GAP + 1.2
+        self.V_SPACING = max(4.5, needed_v)
+        self.positions = self._compute_layout()
+
+        # Inférer haplotypes
+        haplotypes = self._infer_haplotypes(region_info, genotypes, freq_dict)
+
+        # Construire la liste d'individus
+        gen_cache = {}
+        for ind_id in self.ped.ind_ids:
+            self.ped.get_generation(ind_id, gen_cache)
+
+        individuals = []
+        for ind_id in self.ped.ind_ids:
+            pos = self.positions.get(ind_id)
+            if pos is None:
+                continue
+            individuals.append({
+                'id': str(ind_id),
+                'x': round(pos[0], 4),
+                'y': round(pos[1], 4),
+                'sex': self.ped.get_sex(ind_id),
+                'status': self.ped.get_status(ind_id),
+                'generation': gen_cache.get(ind_id, 0),
+                'is_founder': self.ped.is_founder(ind_id),
+            })
+
+        # Construire les connexions familiales
+        connections = self._export_connections()
+
+        # Sérialiser les haplotypes (convertir en listes JSON-friendly)
+        hap_data = {}
+        for ind_id, (pat, mat) in haplotypes.items():
+            hap_data[str(ind_id)] = {
+                'pat': pat,  # liste d'int ou None
+                'mat': mat,
+            }
+
+        # LOD scores
+        lod_scores = region_info.get('lod_scores', None)
+        lod_list = None
+        if lod_scores is not None:
+            lod_list = [round(float(v), 3) if v is not None else None
+                        for v in lod_scores]
+
+        # Labels fondateurs
+        founder_info = []
+        lc = 0
+        for fid in sorted(self.ped.founders):
+            founder_info.append({
+                'id': str(fid),
+                'labels': [lc, lc + 1],
+                'colors': [
+                    HAPLOTYPE_COLORS[lc % len(HAPLOTYPE_COLORS)],
+                    HAPLOTYPE_COLORS[(lc + 1) % len(HAPLOTYPE_COLORS)],
+                ],
+            })
+            lc += 2
+
+        # Generation labels
+        roman = {0: 'I', 1: 'II', 2: 'III', 3: 'IV', 4: 'V', 5: 'VI'}
+        gen_labels = {}
+        for gen_num in sorted(set(gen_cache.values())):
+            ys = [self.positions[ind][1] for ind in self.ped.ind_ids
+                  if gen_cache.get(ind) == gen_num and ind in self.positions]
+            if ys:
+                gen_labels[roman.get(gen_num, str(gen_num))] = round(sum(ys) / len(ys), 4)
+
+        return {
+            'individuals': individuals,
+            'connections': connections,
+            'haplotypes': hap_data,
+            'marker_names': list(marker_names),
+            'lod_scores': lod_list,
+            'lod_threshold': region_info.get('lod_threshold', 3.0),
+            'colors': HAPLOTYPE_COLORS,
+            'founders': founder_info,
+            'gen_labels': gen_labels,
+            'constants': {
+                'SYMBOL_SIZE': self.SYMBOL_SIZE,
+                'HAP_BAR_WIDTH': self.HAP_BAR_WIDTH,
+                'HAP_BAR_GAP': self.HAP_BAR_GAP,
+                'ROW_HEIGHT': round(rh, 6),
+                'HAP_SYMBOL_GAP': self.HAP_SYMBOL_GAP,
+            },
+            'metadata': {
+                'chrom': str(chrom),
+                'start_mb': round(region_info['start_bp'] / 1e6, 2),
+                'end_mb': round(region_info['end_bp'] / 1e6, 2),
+                'peak_lod': round(region_info['peak_lod'], 2),
+                'peak_marker': region_info.get('peak_marker', ''),
+                'n_markers': n_markers,
+            },
+        }
+
+    def export_haplotype_blocks_json(self, region_info, genotypes, freq_dict,
+                                      chrom, kadane_info=None):
+        """
+        Exporte les données en mode blocs fondateurs pour le Canvas HTML.
+
+        Au lieu d'un label par marqueur, fusionne les marqueurs consécutifs
+        ayant le même label fondateur en blocs. Ceci réduit ~700 éléments
+        visuels à ~5-15 blocs par individu, rendant les recombinaisons visibles.
+
+        Parameters
+        ----------
+        region_info : dict
+            Infos de la région (marker_names, lod_scores, etc.)
+        genotypes : dict
+            {marker_name: {ind_id: genotype}}
+        freq_dict : dict
+            {marker_name: freq_A}
+        chrom : str
+            Chromosome
+        kadane_info : dict, optional
+            Résultat de l'analyse Kadane (start_idx, end_idx, etc.)
+
+        Returns
+        -------
+        dict : données JSON pour le Canvas en mode blocs
+        """
+        marker_names = region_info.get('marker_names', [])
+        n_markers = len(marker_names)
+
+        # Stocker pour l'inférence d'haplotypes
+        self.n_markers = n_markers
+        self.marker_names = list(marker_names)
+        self._full_mode = True
+
+        # Row height pour le layout (même logique que export_haplotype_json)
+        rh = max(0.02, 8.0 / n_markers) if n_markers > 0 else self.HAP_ROW_HEIGHT
+        self._eff_row_height = rh
+
+        # Layout
+        bar_height = n_markers * rh
+        needed_v = bar_height + self.SYMBOL_SIZE + self.HAP_SYMBOL_GAP + 1.2
+        self.V_SPACING = max(4.5, needed_v)
+        self.positions = self._compute_layout()
+
+        # Inférer haplotypes (labels fondateurs par marqueur)
+        haplotypes = self._infer_haplotypes(region_info, genotypes, freq_dict)
+
+        # LOD scores
+        lod_scores = region_info.get('lod_scores', None)
+        lod_list = None
+        if lod_scores is not None:
+            lod_list = [round(float(v), 3) if v is not None else None
+                        for v in lod_scores]
+
+        # Construire les blocs pour chaque individu
+        hap_data = {}
+        for ind_id, (pat_labels, mat_labels) in haplotypes.items():
+            pat_blocks = self._labels_to_blocks(pat_labels, n_markers,
+                                                 marker_names, lod_list)
+            mat_blocks = self._labels_to_blocks(mat_labels, n_markers,
+                                                 marker_names, lod_list)
+            hap_data[str(ind_id)] = {
+                'pat_blocks': pat_blocks,
+                'mat_blocks': mat_blocks,
+            }
+
+        # Construire la liste d'individus
+        gen_cache = {}
+        for ind_id in self.ped.ind_ids:
+            self.ped.get_generation(ind_id, gen_cache)
+
+        individuals = []
+        for ind_id in self.ped.ind_ids:
+            pos = self.positions.get(ind_id)
+            if pos is None:
+                continue
+            individuals.append({
+                'id': str(ind_id),
+                'x': round(pos[0], 4),
+                'y': round(pos[1], 4),
+                'sex': self.ped.get_sex(ind_id),
+                'status': self.ped.get_status(ind_id),
+                'generation': gen_cache.get(ind_id, 0),
+                'is_founder': self.ped.is_founder(ind_id),
+            })
+
+        # Connexions familiales
+        connections = self._export_connections()
+
+        # Labels fondateurs
+        founder_info = []
+        lc = 0
+        for fid in sorted(self.ped.founders):
+            founder_info.append({
+                'id': str(fid),
+                'labels': [lc, lc + 1],
+                'colors': [
+                    HAPLOTYPE_COLORS[lc % len(HAPLOTYPE_COLORS)],
+                    HAPLOTYPE_COLORS[(lc + 1) % len(HAPLOTYPE_COLORS)],
+                ],
+            })
+            lc += 2
+
+        # Generation labels
+        roman = {0: 'I', 1: 'II', 2: 'III', 3: 'IV', 4: 'V', 5: 'VI'}
+        gen_labels = {}
+        for gen_num in sorted(set(gen_cache.values())):
+            ys = [self.positions[ind][1] for ind in self.ped.ind_ids
+                  if gen_cache.get(ind) == gen_num and ind in self.positions]
+            if ys:
+                gen_labels[roman.get(gen_num, str(gen_num))] = round(
+                    sum(ys) / len(ys), 4)
+
+        # Zone Kadane (si disponible)
+        kadane_zone = None
+        if kadane_info and kadane_info.get('has_shared', False):
+            k_start = kadane_info['start_idx']
+            k_end = kadane_info['end_idx']
+            kadane_zone = {
+                'start_frac': round(k_start / n_markers, 6) if n_markers > 0 else 0,
+                'end_frac': round((k_end + 1) / n_markers, 6) if n_markers > 0 else 1,
+                'start_marker': kadane_info['start_marker'],
+                'end_marker': kadane_info['end_marker'],
+                'n_markers': kadane_info['n_markers'],
+                'discrimination_score': round(kadane_info['discrimination_score'], 2),
+            }
+
+        return {
+            'individuals': individuals,
+            'connections': connections,
+            'haplotypes': hap_data,
+            'kadane_zone': kadane_zone,
+            'marker_names': list(marker_names),
+            'lod_scores': lod_list,
+            'lod_threshold': region_info.get('lod_threshold', 3.0),
+            'colors': HAPLOTYPE_COLORS,
+            'founders': founder_info,
+            'gen_labels': gen_labels,
+            'constants': {
+                'SYMBOL_SIZE': self.SYMBOL_SIZE,
+                'HAP_BAR_WIDTH': self.HAP_BAR_WIDTH,
+                'HAP_BAR_GAP': self.HAP_BAR_GAP,
+                'ROW_HEIGHT': round(rh, 6),
+                'HAP_SYMBOL_GAP': self.HAP_SYMBOL_GAP,
+            },
+            'metadata': {
+                'chrom': str(chrom),
+                'start_mb': round(region_info['start_bp'] / 1e6, 2),
+                'end_mb': round(region_info['end_bp'] / 1e6, 2),
+                'peak_lod': round(region_info['peak_lod'], 2),
+                'peak_marker': region_info.get('peak_marker', ''),
+                'n_markers': n_markers,
+            },
+        }
+
+    def _labels_to_blocks(self, labels, n_markers, marker_names, lod_scores):
+        """
+        Convertit une séquence de labels fondateurs en blocs enrichis.
+
+        Fusionne les marqueurs consécutifs ayant le même label en un bloc,
+        et ajoute les noms de marqueurs et LOD moyen.
+
+        Returns
+        -------
+        list of dict : [{start_frac, end_frac, founder_allele, start_marker,
+                         end_marker, n_markers, mean_lod, start_idx, end_idx}]
+        """
+        if n_markers == 0:
+            return [{'start_frac': 0.0, 'end_frac': 1.0, 'founder_allele': -1,
+                     'start_marker': '', 'end_marker': '', 'n_markers': 0,
+                     'mean_lod': 0, 'start_idx': 0, 'end_idx': 0}]
+
+        blocks = []
+        current_label = None
+        start_idx = 0
+
+        for i, label in enumerate(labels):
+            effective_label = label if label is not None else -1
+            if effective_label != current_label:
+                if current_label is not None:
+                    blocks.append(self._make_block(
+                        start_idx, i - 1, current_label, n_markers,
+                        marker_names, lod_scores))
+                current_label = effective_label
+                start_idx = i
+
+        # Dernier bloc
+        if current_label is not None:
+            blocks.append(self._make_block(
+                start_idx, n_markers - 1, current_label, n_markers,
+                marker_names, lod_scores))
+
+        if not blocks:
+            blocks = [{'start_frac': 0.0, 'end_frac': 1.0, 'founder_allele': -1,
+                       'start_marker': '', 'end_marker': '', 'n_markers': 0,
+                       'mean_lod': 0, 'start_idx': 0, 'end_idx': 0}]
+
+        return blocks
+
+    @staticmethod
+    def _make_block(start_idx, end_idx, label, n_markers, marker_names,
+                    lod_scores):
+        """Crée un bloc enrichi à partir d'indices."""
+        mean_lod = 0
+        if lod_scores:
+            lods = [lod_scores[i] for i in range(start_idx, end_idx + 1)
+                    if i < len(lod_scores) and lod_scores[i] is not None]
+            if lods:
+                mean_lod = round(sum(lods) / len(lods), 2)
+        return {
+            'start_frac': round(start_idx / n_markers, 6),
+            'end_frac': round((end_idx + 1) / n_markers, 6),
+            'founder_allele': label,
+            'start_marker': marker_names[start_idx] if start_idx < len(marker_names) else '',
+            'end_marker': marker_names[end_idx] if end_idx < len(marker_names) else '',
+            'n_markers': end_idx - start_idx + 1,
+            'mean_lod': mean_lod,
+            'start_idx': start_idx,
+            'end_idx': end_idx,
+        }
+
+    def _export_connections(self):
+        """Exporte les lignes de connexion familiale en JSON."""
+        lines = []
+        s = self.SYMBOL_SIZE
+
+        root_fams = [fam for fam in self.ped.nuclear_families
+                     if self.ped.is_founder(fam.father) and
+                        self.ped.is_founder(fam.mother)]
+        main_root = max(root_fams, key=lambda f: len(f.children))
+        secondary_roots = set(id(f) for f in root_fams if f is not main_root)
+
+        for fam in self.ped.nuclear_families:
+            f_pos = self.positions.get(fam.father)
+            m_pos = self.positions.get(fam.mother)
+            if f_pos is None or m_pos is None:
+                continue
+
+            # Couple line
+            lines.append({
+                'x1': round(f_pos[0] + s / 2, 4),
+                'y1': round(f_pos[1], 4),
+                'x2': round(m_pos[0] - s / 2, 4),
+                'y2': round(m_pos[1], 4),
+                'type': 'couple',
+            })
+
+            mid_x = (f_pos[0] + m_pos[0]) / 2
+            mid_y = f_pos[1]
+
+            if fam.children:
+                child_positions = [(c, self.positions.get(c))
+                                   for c in fam.children
+                                   if self.positions.get(c) is not None]
+                if not child_positions:
+                    continue
+
+                if id(fam) in secondary_roots:
+                    parent_span = abs(f_pos[0] - m_pos[0])
+                    threshold = parent_span + 4 * self.MIN_IND_GAP
+                    nearby = [(c, cp) for c, cp in child_positions
+                              if abs(cp[0] - mid_x) <= threshold]
+                else:
+                    nearby = child_positions
+
+                if nearby:
+                    child_y = nearby[0][1][1]
+                    drop_y = (mid_y + child_y) / 2
+
+                    child_xs = [cp[0] for _, cp in nearby]
+                    bar_min = min(min(child_xs), mid_x)
+                    bar_max = max(max(child_xs), mid_x)
+
+                    # Vertical from couple to drop
+                    lines.append({
+                        'x1': round(mid_x, 4),
+                        'y1': round(mid_y - s / 2, 4),
+                        'x2': round(mid_x, 4),
+                        'y2': round(drop_y, 4),
+                        'type': 'drop',
+                    })
+                    # Horizontal bar
+                    lines.append({
+                        'x1': round(bar_min, 4),
+                        'y1': round(drop_y, 4),
+                        'x2': round(bar_max, 4),
+                        'y2': round(drop_y, 4),
+                        'type': 'bar',
+                    })
+                    # Vertical to each child
+                    for _, cp in nearby:
+                        lines.append({
+                            'x1': round(cp[0], 4),
+                            'y1': round(drop_y, 4),
+                            'x2': round(cp[0], 4),
+                            'y2': round(cp[1] + s / 2, 4),
+                            'type': 'child',
+                        })
+
+        return lines
 
     # ------------------------------------------------------------------
     # Méthodes d'annotation
@@ -527,7 +1066,7 @@ class PedigreeViz:
                     ha='center', va='center', fontsize=16, fontweight='bold',
                     fontstyle='italic', color='black', zorder=11)
 
-    def _draw_marker_legend(self, ax):
+    def _draw_marker_legend(self, ax, lod_scores=None, lod_threshold=3.0):
         """Dessine les noms de marqueurs en marge gauche, alignés avec les barres."""
         if not self.marker_names or self.n_markers == 0:
             return
@@ -554,12 +1093,20 @@ class PedigreeViz:
 
         # Si trop de marqueurs, n'afficher qu'un sous-ensemble
         n = self.n_markers
+        full_mode = getattr(self, '_full_mode', False)
         if n <= 15:
             indices = range(n)
             fontsize = 5.5
         elif n <= 30:
             indices = range(n)
             fontsize = 4.0
+        elif full_mode:
+            # Mode full : afficher ~30 labels régulièrement espacés
+            step = max(1, n // 30)
+            indices = list(range(0, n, step))
+            if (n - 1) not in indices:
+                indices.append(n - 1)
+            fontsize = 3.0
         else:
             # Afficher environ 20 marqueurs régulièrement espacés
             step = max(1, n // 20)
@@ -581,6 +1128,30 @@ class PedigreeViz:
             row_y = bar_y_top - (mi + 0.5) * rh
             ax.plot([legend_x + 0.05, bar_x - 0.05], [row_y, row_y],
                     color='#cccccc', linewidth=0.3, zorder=1)
+
+        # Barre verticale rouge en marge pour la zone LOD ≥ seuil
+        if lod_scores is not None and len(lod_scores) == n:
+            bar_margin_x = legend_x + 0.15
+            in_run = False
+            run_start = 0
+            for mi in range(n):
+                above = lod_scores[mi] >= lod_threshold
+                if above and not in_run:
+                    run_start = mi
+                    in_run = True
+                elif not above and in_run:
+                    y_top = bar_y_top - run_start * rh
+                    y_bot = bar_y_top - mi * rh
+                    ax.plot([bar_margin_x, bar_margin_x], [y_top, y_bot],
+                            color='#ff4444', linewidth=2.5, solid_capstyle='round',
+                            zorder=10)
+                    in_run = False
+            if in_run:
+                y_top = bar_y_top - run_start * rh
+                y_bot = bar_y_top - n * rh
+                ax.plot([bar_margin_x, bar_margin_x], [y_top, y_bot],
+                        color='#ff4444', linewidth=2.5, solid_capstyle='round',
+                        zorder=10)
 
     def _draw_founder_legend(self, ax):
         """Dessine une légende compacte des couleurs fondateurs."""
@@ -609,17 +1180,25 @@ class PedigreeViz:
                                        markerfacecolor='#c0c0c0', markeredgecolor='black',
                                        markersize=7, label='Inconnu'))
 
+        # Zone LOD significative
+        legend_elements.append(mpatches.Patch(facecolor='#ff4444', alpha=0.18,
+                                               edgecolor='#ff4444', linewidth=0.8,
+                                               label='LOD ≥ seuil'))
+
         ax.legend(handles=legend_elements, loc='upper right', fontsize=6,
                   ncol=3, framealpha=0.95, handlelength=1.2, handleheight=0.8,
                   borderpad=0.5, labelspacing=0.25, columnspacing=0.8,
                   edgecolor='#cccccc')
 
-    def _draw_individual(self, ax, ind_id, haplotype_data=None):
+    def _draw_individual(self, ax, ind_id, haplotype_data=None,
+                          lod_scores=None, lod_threshold=3.0):
         """
         Dessine un individu : symbole, barres d'haplotypes EN DESSOUS, et ID.
 
         haplotype_data : (pat_labels, mat_labels) — listes de longueur n_markers,
                          chaque élément est un index d'allèle fondateur ou None.
+        lod_scores : array of LOD scores per marker (same length as n_markers)
+        lod_threshold : threshold for significant LOD highlight
         """
         pos = self.positions.get(ind_id)
         if pos is None:
@@ -693,6 +1272,47 @@ class PedigreeViz:
                     linewidth=0.8, zorder=6
                 )
                 ax.add_patch(border)
+
+            # --- Fond semi-transparent pour la zone LOD > seuil ---
+            if lod_scores is not None and len(lod_scores) == n_m:
+                # Trouver les runs continus de marqueurs au-dessus du seuil
+                in_run = False
+                run_start = 0
+                highlight_pad = 0.06  # padding autour des barres
+                highlight_x = bar_x_pat - highlight_pad
+                highlight_w = total_bar_w + 2 * highlight_pad
+
+                for mi in range(n_m):
+                    above = lod_scores[mi] >= lod_threshold
+                    if above and not in_run:
+                        run_start = mi
+                        in_run = True
+                    elif not above and in_run:
+                        # Dessiner le rectangle pour ce run
+                        run_y_top = bar_y_top - run_start * rh
+                        run_h = (mi - run_start) * rh
+                        highlight = Rectangle(
+                            (highlight_x, run_y_top - run_h),
+                            highlight_w, run_h,
+                            facecolor='#ff4444', alpha=0.18,
+                            edgecolor='#ff4444', linewidth=0.8,
+                            linestyle='-', zorder=4
+                        )
+                        ax.add_patch(highlight)
+                        in_run = False
+
+                # Fermer le dernier run si nécessaire
+                if in_run:
+                    run_y_top = bar_y_top - run_start * rh
+                    run_h = (n_m - run_start) * rh
+                    highlight = Rectangle(
+                        (highlight_x, run_y_top - run_h),
+                        highlight_w, run_h,
+                        facecolor='#ff4444', alpha=0.18,
+                        edgecolor='#ff4444', linewidth=0.8,
+                        linestyle='-', zorder=4
+                    )
+                    ax.add_patch(highlight)
 
         # --- ID de l'individu sous les barres ---
         if n_m > 0:

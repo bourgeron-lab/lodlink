@@ -65,6 +65,8 @@ class Pedigree:
                          if info['status'] == 2}
         self.unaffected = {ind_id for ind_id, info in ped_dict.items()
                            if info['status'] == 1}
+        self.unknown = {ind_id for ind_id, info in ped_dict.items()
+                        if info['status'] == 0}
 
     def _build_nuclear_families(self):
         """Construit les familles nucléaires à partir du pedigree."""

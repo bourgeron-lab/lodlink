@@ -37,7 +37,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  # Analyse genome-wide, modèle dominant, thinning 0.5 cM (utilise data/ par défaut)
+  # Analyse genome-wide, modèle dominant, sans thinning (utilise data/ par défaut)
   python run_analysis.py --html --extend-region 3.0
 
   # Modèle récessif, chromosome 6 uniquement
@@ -69,8 +69,8 @@ Exemples:
                         help='Pénétrances (f0=phénocopie, f1=Dd, f2=DD)')
     parser.add_argument('--output', default='results',
                         help='Dossier de sortie (défaut: results)')
-    parser.add_argument('--thin', type=float, default=0.5,
-                        help='Thinning en cM (0=pas de thinning, défaut: 0.5)')
+    parser.add_argument('--thin', type=float, default=0,
+                        help='Thinning en cM (0=pas de thinning, défaut: 0)')
     parser.add_argument('--lod-threshold', type=float, default=3.0,
                         help='Seuil LOD pour les régions significatives (défaut: 3.0)')
     parser.add_argument('--chr', default=None,
@@ -83,6 +83,8 @@ Exemples:
                         help='Étendre les régions significatives de N Mb de chaque côté (défaut: 2.0)')
     parser.add_argument('--html', action='store_true',
                         help='Générer une visualisation HTML interactive')
+    parser.add_argument('--build', choices=['hg19', 'hg38'], default='hg19',
+                        help='Build génomique des positions du fichier map (défaut: hg19, liftover auto vers hg38)')
 
     args = parser.parse_args()
 
@@ -103,6 +105,33 @@ Exemples:
         thin_cm=thin_cm,
         target_chr=args.chr
     )
+
+    # ================================================================
+    # 1b. Liftover hg19 → hg38 si nécessaire
+    # ================================================================
+    n_liftover_unmapped = 0
+    if args.build == 'hg19':
+        from lodlink.data_parser import liftover_map_hg19_to_hg38
+        print(f"\n  Conversion des coordonnées hg19 → hg38...")
+        data['map'], n_liftover_unmapped = liftover_map_hg19_to_hg38(data['map'])
+
+        # Reconstruire markers_by_chr avec les positions liftées
+        remaining_markers = set(data['map']['name'].values)
+        chromosomes = sorted(data['map']['chr'].unique(),
+                             key=lambda x: int(x) if x.isdigit() else 99)
+        data['chromosomes'] = chromosomes
+        data['markers_by_chr'] = {}
+        for chrom in chromosomes:
+            chr_df = data['map'][data['map']['chr'] == chrom].sort_values('cm')
+            data['markers_by_chr'][chrom] = chr_df.reset_index(drop=True)
+
+        # Pruner les génotypes des marqueurs non-mappés
+        data['genotypes'] = {k: v for k, v in data['genotypes'].items()
+                             if k in remaining_markers}
+
+        genome_build = 'GRCh38 (liftover hg19→hg38)'
+    else:
+        genome_build = 'GRCh38 (hg38)'
 
     # ================================================================
     # 2. Construire le pedigree
@@ -203,6 +232,26 @@ Exemples:
             key = r['peak_marker']
             if key not in seen_peaks:
                 seen_peaks.add(key)
+                # Choisir le tableau de LOD scores correspondant au type
+                rtype = r.get('type', '')
+                if 'npl' in rtype:
+                    full_lod = mp_npl if 'multipoint' in rtype else npl_lod
+                else:
+                    full_lod = mp_param if 'multipoint' in rtype else param_lod
+
+                # Sauvegarder les bornes originales de la zone significative
+                # (avant extension) pour le shading Plotly et le Canvas
+                r['sig_start_idx'] = r['start_idx']
+                r['sig_end_idx'] = r['end_idx']
+                r['sig_start_bp'] = r['start_bp']
+                r['sig_end_bp'] = r['end_bp']
+                r['sig_start_cm'] = r['start_cm']
+                r['sig_end_cm'] = r['end_cm']
+                sig_s = r['start_idx']
+                sig_e = r['end_idx']
+                r['sig_marker_names'] = markers_df['name'].values[sig_s:sig_e + 1]
+                r['sig_lod_scores'] = full_lod[sig_s:sig_e + 1]
+
                 # Étendre la région si demandé
                 if args.extend_region > 0:
                     extend_bp = args.extend_region * 1e6
@@ -219,6 +268,15 @@ Exemples:
                     r['end_bp'] = bp_vals[new_end_idx]
                     r['start_cm'] = cm_pos[new_start_idx]
                     r['end_cm'] = cm_pos[new_end_idx]
+
+                # Recalculer les arrays sur la région (étendue ou non)
+                s_idx = r['start_idx']
+                e_idx = r['end_idx']
+                r['marker_indices'] = list(range(s_idx, e_idx + 1))
+                r['marker_names'] = markers_df['name'].values[s_idx:e_idx + 1]
+                r['lod_scores'] = full_lod[s_idx:e_idx + 1]
+                r['cm_positions'] = cm_pos[s_idx:e_idx + 1]
+                r['lod_threshold'] = args.lod_threshold
                 all_regions.append(r)
         if all_regions:
             all_significant_regions[chrom] = all_regions
@@ -250,8 +308,12 @@ Exemples:
     print("VISUALISATIONS")
     print("=" * 60)
 
-    output_dir = args.output
+    from datetime import datetime
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    output_dir = os.path.join(args.output, timestamp)
     os.makedirs(output_dir, exist_ok=True)
+    print(f"  Workspace: {os.path.abspath(output_dir)}/")
+    print()
 
     # Plots genome-wide
     print("\n  Génération des plots LOD...")
@@ -265,16 +327,39 @@ Exemples:
             all_significant_regions, data['genotypes'], data['freq']
         )
 
+        # Pedigrees "full markers" pour les régions paramétriques
+        for chrom, regions in all_significant_regions.items():
+            for region in regions:
+                if 'param' in region.get('type', ''):
+                    n_mk = len(region.get('marker_names', []))
+                    fname = (f"pedigree_chr{chrom}_"
+                             f"{region['start_bp'] / 1e6:.1f}Mb_"
+                             f"{region['end_bp'] / 1e6:.1f}Mb_full.png")
+                    print(f"  → Pedigree FULL ({n_mk} marqueurs): {fname}")
+                    pedigree_viz.draw_pedigree_with_haplotypes(
+                        region, data['genotypes'], data['freq'],
+                        chrom, filename=fname, skip_adaptive=True
+                    )
+
     # Table résumé
     print("\n  Génération du tableau résumé...")
     generate_results_table(results_by_chr, output_dir, threshold=args.lod_threshold)
 
     # HTML interactif
     if args.html:
-        print("\n  Génération du rapport HTML interactif...")
+        # Filtrer: uniquement les régions paramétriques pour le rapport HTML
+        param_regions = {}
+        for chrom, regions in all_significant_regions.items():
+            param_only = [r for r in regions if 'param' in r.get('type', '')]
+            if param_only:
+                param_regions[chrom] = param_only
+        n_param = sum(len(v) for v in param_regions.values())
+        print(f"\n  Génération du rapport HTML interactif ({n_param} régions paramétriques)...")
         generate_interactive_html(
-            results_by_chr, all_significant_regions, output_dir,
-            pedigree, data['genotypes'], threshold=args.lod_threshold
+            results_by_chr, param_regions, output_dir,
+            pedigree, data['genotypes'], data['freq'],
+            threshold=args.lod_threshold,
+            genome_build=genome_build
         )
 
     # Sauvegarder les scores bruts
@@ -291,6 +376,7 @@ Exemples:
     print("RÉSUMÉ")
     print("=" * 60)
     print(f"  Temps total: {t_elapsed:.1f} secondes ({t_elapsed/60:.1f} minutes)")
+    print(f"  Genome build: {genome_build}")
     print(f"  Marqueurs analysés: {n_total_markers}")
     print(f"  Chromosomes: {len(results_by_chr)}")
     print(f"  Régions significatives (LOD ≥ {args.lod_threshold}): {n_sig_regions}")

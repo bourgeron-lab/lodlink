@@ -79,6 +79,73 @@ def parse_map(filepath):
     return df
 
 
+def liftover_map_hg19_to_hg38(map_df):
+    """
+    Convertit les positions bp d'un DataFrame map de hg19 (GRCh37) vers hg38 (GRCh38).
+
+    Utilise le package liftover (jeremymcrae) avec chain file auto-téléchargé.
+    Les marqueurs non-mappables sont supprimés avec un avertissement.
+
+    Parameters
+    ----------
+    map_df : DataFrame
+        Map avec colonnes ['chr', 'name', 'cm', 'bp'] où bp est en hg19.
+
+    Returns
+    -------
+    map_df : DataFrame
+        Même structure avec bp converti en hg38. Marqueurs non-mappés supprimés.
+    n_unmapped : int
+        Nombre de marqueurs qui n'ont pas pu être convertis.
+    """
+    from liftover import get_lifter
+
+    converter = get_lifter('hg19', 'hg38')
+
+    n_total = len(map_df)
+    if n_total == 0:
+        return map_df.copy(), 0
+
+    new_bp = []
+    keep_mask = []
+    unmapped_names = []
+
+    for _, row in map_df.iterrows():
+        chrom = str(row['chr'])
+        # Le package liftover attend le format 'chr1', 'chr2', etc.
+        result = converter.convert_coordinate(f'chr{chrom}', int(row['bp']))
+
+        if result and len(result) > 0:
+            # result[0] = (new_chrom, new_pos, strand)
+            new_bp.append(int(result[0][1]))
+            keep_mask.append(True)
+        else:
+            new_bp.append(0)
+            keep_mask.append(False)
+            unmapped_names.append(row['name'])
+
+    n_unmapped = sum(1 for k in keep_mask if not k)
+
+    if n_unmapped > 0:
+        pct = n_unmapped / n_total * 100
+        print(f"  ⚠ {n_unmapped}/{n_total} marqueurs non-mappables ({pct:.1f}%)")
+        if n_unmapped <= 20:
+            print(f"    Non-mappés: {', '.join(unmapped_names)}")
+        else:
+            print(f"    Premiers non-mappés: {', '.join(unmapped_names[:10])}...")
+
+    map_df = map_df.copy()
+    map_df['bp'] = new_bp
+    map_df = map_df[keep_mask].reset_index(drop=True)
+
+    # Re-trier (les positions bp peuvent avoir changé d'ordre après liftover)
+    map_df = map_df.sort_values(['chr', 'cm', 'bp']).reset_index(drop=True)
+
+    print(f"  Liftover hg19 → hg38 : {n_total - n_unmapped}/{n_total} marqueurs convertis")
+
+    return map_df, n_unmapped
+
+
 def parse_freq(filepath):
     """
     Parse le fichier de fréquences alléliques.
